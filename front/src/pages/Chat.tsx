@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { connectSocket } from "../socket/socket";
 import { api } from "../api/client";
@@ -17,44 +17,55 @@ export default function Chat() {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [text, setText] = useState("");
 
+  // 👇 Memoize loadMessages so React doesn't warn
+  const loadMessages = useCallback(async () => {
+    try {
+      const res = await api.get<IMessage[]>(`/messages/${channelId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      setMessages(res.data);
+    } catch (err) {
+      console.log(err);
+    }
+  }, [channelId]);
+
   useEffect(() => {
     socketRef.current = connectSocket();
 
     socketRef.current.emit("join_channel", channelId);
 
-    // Listen for live messages
+    // Listen for incoming live messages
     socketRef.current.on("new_message", (msg: IMessage) => {
       setMessages(prev => [...prev, msg]);
     });
 
-    // Load previous messages
+    // Load saved messages from DB
     loadMessages();
 
     return () => {
       socketRef.current.off("new_message");
     };
-  }, [channelId]);
+  }, [channelId, loadMessages]); // now loadMessages can be added safely
 
-  const loadMessages = async () => {
-    try {
-      const res = await api.get<IMessage[]>(`/messages/${channelId}`);
-      setMessages(res.data);
-    } catch (err) {
-      console.log(err);
-    }
-  };
+const sendMessage = async () => {
+  if (!text.trim()) return;
 
-  const sendMessage = () => {
-    if (!text.trim()) return;
+  const token = localStorage.getItem("token");
 
-    socketRef.current.emit("send_message", {
-      channelId,
-      userId: localStorage.getItem("userId"),
-      text,
-    });
+  // 1. Save message in DB
+  await api.post(`/messages/${channelId}`, { text }, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
-    setText("");
-  };
+  // 2. Emit message through websocket
+  socketRef.current.emit("send_message", {
+    channelId,
+    userId: localStorage.getItem("userId"),
+    text
+  });
+
+  setText("");
+};
 
   return (
     <div style={{ padding: 20 }}>
