@@ -18,7 +18,8 @@ Users can authenticate, join channels, send messages, and chat with others insta
 
 ## 🏗 Architecture Diagram
 
-![Slack Architecture](./slack_architecture.png)
+![Architecture Diagram](./Architecture%20Image.png)
+
 
 --- 
 
