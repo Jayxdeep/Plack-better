@@ -18,7 +18,7 @@ Users can authenticate, join channels, send messages, and chat with others insta
 
 ## 🏗 Architecture Diagram
 
-![Architecture Diagram](./Architecture%20Image.png)
+![Architecture Diagram](./Architecture_image.png)
 
 
 --- 
