@@ -17,8 +17,6 @@ export default function Chat() {
   const [text, setText] = useState("");
   const navigate = useNavigate();
 
-  // Load messages + socket
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const token = localStorage.getItem("token");
 
@@ -47,14 +45,12 @@ export default function Chat() {
       const res = await api.get<IMessage[]>(`/messages/${channelId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setMessages(res.data);
     } catch (err) {
       console.log("Error loading messages:", err);
     }
   };
 
-  // Send socket message
   const sendMessage = () => {
     const userId = localStorage.getItem("userId");
     if (!text.trim() || !userId) return;
