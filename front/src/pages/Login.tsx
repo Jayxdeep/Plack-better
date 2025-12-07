@@ -1,29 +1,69 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { socket } from "../socket/socket";
-
+import { useNavigate } from "react-router-dom";
+interface LoginResponse {
+  _id: string;
+  email: string;
+  token: string;
+}
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (localStorage.getItem("token")) {
+      navigate("/channels");
+    }
+  }, [navigate]);
 
   const handleLogin = async () => {
-    const res = await api.post("/auth/login", { email, password });
-    const data = res.data as any;
-    
-    localStorage.setItem("token", data.token);
+    if (!email || !password) {
+      setMessage("Please enter email and password");
+      return;
+    }
 
-    socket.auth = { token: data.token };
-    socket.connect();
+    try {
+      const res = await api.post<LoginResponse>("/auth/login", { email, password });
+      const data = res.data;
 
-    window.location.href = "/channels";
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("userId", data._id);
+
+      socket.auth = { token: data.token };
+      socket.connect();
+
+      navigate("/channels");
+    } catch (err: any) {
+      setMessage(err.response?.data?.message || "Login failed");
+    }
   };
 
   return (
-    <div>
+    <div style={{ padding: 20 }}>
       <h2>Login</h2>
-      <input placeholder="email" onChange={e => setEmail(e.target.value)} />
-      <input placeholder="password" onChange={e => setPassword(e.target.value)} />
+
+      <input
+        placeholder="Email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      /><br/><br/>
+
+      <input
+        placeholder="Password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      /><br/><br/>
+
       <button onClick={handleLogin}>Login</button>
+
+      {message && <p style={{ color: "red" }}>{message}</p>}
+
+      <p>Don't have an account? <a href="/register">Register</a></p>
     </div>
   );
 }

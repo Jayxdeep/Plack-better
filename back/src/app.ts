@@ -8,8 +8,8 @@ import messageRoutes from "./routes/message.routes"
 const app = express();
 
 app.use(cors())
+app.use(express.json())
 app.use(json())
-
 app.use("/auth",authRoutes)
 app.use("/channels", channelRoutes)
 app.use("/messages", messageRoutes)

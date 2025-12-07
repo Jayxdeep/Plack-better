@@ -1,65 +1,99 @@
 import { useEffect, useState } from "react";
-import { socket } from "../socket/socket";
 import { api } from "../api/client";
-import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-
-interface IMessage {
-  _id?: string;
-  channelId: string;
-  userId: string;
-  text: string;
-  createdAt?: string;
+interface IChannel {
+  _id: string;
+  name: string;
 }
 
-export default function Chat() {
-  const { id } = useParams();
-  const [messages, setMessages] = useState<IMessage[]>([]);
-  const [text, setText] = useState("");
+export default function Channels() {
+  const [channels, setChannels] = useState<IChannel[]>([]);
+  const [newChannel, setNewChannel] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
-    loadMessages();
-
-    socket.on("new_message", (msg: IMessage) => {
-      setMessages((prev) => [...prev, msg]);
-    });
-
-    return () => {
-      socket.off("new_message");
-    };
-  }, [id]);
-
-  const loadMessages = async () => {
     const token = localStorage.getItem("token");
-    const res = await api.get(`/messages/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
 
-    setMessages(res.data as IMessage[]);
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    loadChannels(token);
+  }, [navigate]);
+
+  const loadChannels = async (token: string) => {
+    try {
+      const res = await api.get<IChannel[]>("/channels", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setChannels(res.data);
+    } catch (err) {
+      console.error("Error loading channels:", err);
+    }
   };
 
-  const sendMessage = () => {
-    const userId = localStorage.getItem("userId");
+  const handleCreateChannel = async () => {
+    const token = localStorage.getItem("token");
+    if (!newChannel.trim()) return;
 
-    socket.emit("send_message", {
-      channelId: id,
-      userId,
-      text,
-    });
+    try {
+      await api.post(
+        "/channels",
+        { name: newChannel },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    setText("");
+      setNewChannel("");
+      loadChannels(token!); // Refresh channel list
+    } catch (err) {
+      console.error("Failed to create channel:", err);
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userId");
+    navigate("/login");
   };
 
   return (
-    <div>
-      <h2>Chat</h2>
+    <div style={{ padding: "20px" }}>
+      <h2>Channels</h2>
 
-      {messages.map((msg) => (
-        <div key={msg._id}>{msg.text}</div>
+      <button onClick={logout} style={{ marginBottom: "15px" }}>
+        Logout
+      </button>
+
+      <div>
+        <input
+          placeholder="Create new channel"
+          value={newChannel}
+          onChange={(e) => setNewChannel(e.target.value)}
+        />
+        <button onClick={handleCreateChannel}>+</button>
+      </div>
+
+      <br />
+
+      {channels.length === 0 && <p>No channels found yet.</p>}
+
+      {channels.map((ch) => (
+        <div
+          key={ch._id}
+          style={{
+            padding: "10px",
+            border: "1px solid gray",
+            marginBottom: "10px",
+            cursor: "pointer",
+            width: "fit-content",
+          }}
+          onClick={() => navigate(`/chat/${ch._id}`)}
+        >
+          # {ch.name}
+        </div>
       ))}
-
-      <input value={text} onChange={(e) => setText(e.target.value)} />
-      <button onClick={sendMessage}>Send</button>
     </div>
   );
 }
